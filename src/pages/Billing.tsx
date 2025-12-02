@@ -169,11 +169,10 @@ export default function Billing() {
       // Save last bill number
       setLastBillNumber(billNumber);
 
-      // CLOUD SYNC FIXED — pass the URL -------------------------------------
-      if (settings.autoSync && settings.googleSheetsUrl) {
-        await syncSingleBill(bill, settings.googleSheetsUrl);
+      // CLOUD SYNC — Option 1 (Hard-coded URL in cloud.ts)
+      if (settings.autoSync) {
+        await syncSingleBill(bill);
       }
-      // ----------------------------------------------------------------------
 
       toast({
         title: 'Bill Saved',

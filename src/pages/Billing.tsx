@@ -10,9 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
 import { getAllMenuItems, createBill, getSettings } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+
 import { MenuItem, BillItem, Bill, AppSettings } from '@/types';
+
 import { Plus, Minus, Trash2, ShoppingCart, Printer, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { printBill } from '@/lib/print';
@@ -73,9 +76,9 @@ export default function Billing() {
   const categories = ['all', ...Array.from(new Set(menuItems.map(item => item.category)))];
 
   const filteredItems = menuItems.filter(item => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCategory && matchSearch;
   });
 
   const addToCart = (item: MenuItem) => {
@@ -163,14 +166,14 @@ export default function Billing() {
       // Save locally
       await createBill(bill);
 
-      // Save last bill no.
+      // Save last bill number
       setLastBillNumber(billNumber);
 
-      // CLOUD SYNC ----------------------------------------------------------
+      // CLOUD SYNC FIXED — pass the URL -------------------------------------
       if (settings.autoSync && settings.googleSheetsUrl) {
-        await syncSingleBill(bill);
+        await syncSingleBill(bill, settings.googleSheetsUrl);
       }
-      // ---------------------------------------------------------------------
+      // ----------------------------------------------------------------------
 
       toast({
         title: 'Bill Saved',
@@ -179,6 +182,7 @@ export default function Billing() {
 
       if (shouldPrint) printBill(bill, settings);
 
+      // Reset UI
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');

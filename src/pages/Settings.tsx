@@ -19,7 +19,7 @@ import { Save, Download, Moon, Sun } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportDataBackup } from '@/lib/export';
 
-// CLOUD SYNC IMPORTS
+// CLOUD SYNC (Hard-coded API URL system)
 import { loadAllFromCloudAndOverwriteLocal } from '@/lib/cloud/cloud-load';
 import { pushFullSync } from '@/lib/cloud/cloud';
 import { startAutoSync, stopAutoSync } from '@/lib/cloud/cloud-auto';
@@ -35,12 +35,15 @@ export default function Settings() {
     theme: 'dark',
     autoSync: false,
     currency: '₹',
+
+    // NOTE: URL is visible in UI but NOT USED in Option 1
     googleSheetsUrl: '',
   });
 
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { toast } = useToast();
 
+  // Load settings on mount
   useEffect(() => {
     loadSettings();
 
@@ -55,10 +58,8 @@ export default function Settings() {
       if (data) {
         setSettings(data);
 
-        // FIXED: MUST pass URL
-        if (data.googleSheetsUrl) {
-          await loadAllFromCloudAndOverwriteLocal(data.googleSheetsUrl);
-        }
+        // Option 1: Hard-coded URL → No parameter needed
+        await loadAllFromCloudAndOverwriteLocal();
 
         setIsDarkMode(data.theme === 'dark');
       }
@@ -167,17 +168,15 @@ export default function Settings() {
           <TabsTrigger value="backup">Backup</TabsTrigger>
         </TabsList>
 
-        {/* SHOP INFO */}
+        {/* SHOP INFO TAB */}
         <TabsContent value="shop" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Shop Information</CardTitle>
-              <CardDescription>
-                This information will appear on printed bills
-              </CardDescription>
+              <CardDescription>This information will appear on printed bills</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
 
+            <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="shop-name">Shop Name *</Label>
                 <Input
@@ -194,41 +193,37 @@ export default function Settings() {
                   id="shop-address"
                   value={settings.shopAddress}
                   onChange={(e) => setSettings({ ...settings, shopAddress: e.target.value })}
-                  placeholder="Enter complete address"
                   rows={3}
+                  placeholder="Address"
                 />
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="shop-gst">GST Number</Label>
+                  <Label htmlFor="gst">GST</Label>
                   <Input
-                    id="shop-gst"
+                    id="gst"
                     value={settings.shopGST}
                     onChange={(e) => setSettings({ ...settings, shopGST: e.target.value })}
-                    placeholder="GSTIN"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="shop-phone">Phone Number</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
-                    id="shop-phone"
+                    id="phone"
                     value={settings.shopPhone || ''}
                     onChange={(e) => setSettings({ ...settings, shopPhone: e.target.value })}
-                    placeholder="Contact number"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="shop-email">Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="shop-email"
-                  type="email"
+                  id="email"
                   value={settings.shopEmail || ''}
                   onChange={(e) => setSettings({ ...settings, shopEmail: e.target.value })}
-                  placeholder="shop@example.com"
                 />
               </div>
 
@@ -236,131 +231,89 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* BILLING */}
+        {/* BILLING TAB */}
         <TabsContent value="billing" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Tax Configuration</CardTitle>
-              <CardDescription>
-                Configure GST rates for billing
-              </CardDescription>
+              <CardTitle>Billing Tax</CardTitle>
+              <CardDescription>Configure GST rates</CardDescription>
             </CardHeader>
-
             <CardContent className="space-y-4">
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cgst">CGST Rate (%)</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>CGST (%)</Label>
                   <Input
-                    id="cgst"
-                    type="number"
-                    step="0.1"
                     value={settings.cgstRate}
                     onChange={(e) => setSettings({ ...settings, cgstRate: parseFloat(e.target.value) })}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="sgst">SGST Rate (%)</Label>
+                <div>
+                  <Label>SGST (%)</Label>
                   <Input
-                    id="sgst"
-                    type="number"
-                    step="0.1"
                     value={settings.sgstRate}
                     onChange={(e) => setSettings({ ...settings, sgstRate: parseFloat(e.target.value) })}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency Symbol</Label>
+              <div>
+                <Label>Currency</Label>
                 <Input
-                  id="currency"
                   value={settings.currency}
                   onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                  placeholder="₹"
                 />
               </div>
-
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
               <CardTitle>Printer Settings</CardTitle>
-              <CardDescription>
-                Configure thermal printer format
-              </CardDescription>
             </CardHeader>
-
-            <CardContent className="space-y-4">
-
-              <div className="space-y-2">
-                <Label htmlFor="printer-format">Printer Format</Label>
-                <Select
-                  value={settings.printerFormat}
-                  onValueChange={(value: '58mm' | '80mm') => setSettings({ ...settings, printerFormat: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="58mm">58mm (Small)</SelectItem>
-                    <SelectItem value="80mm">80mm (Standard)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+            <CardContent>
+              <Label>Printer Format</Label>
+              <Select
+                value={settings.printerFormat}
+                onValueChange={(value: any) => setSettings({ ...settings, printerFormat: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="58mm">58mm</SelectItem>
+                  <SelectItem value="80mm">80mm</SelectItem>
+                </SelectContent>
+              </Select>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* APPEARANCE */}
-        <TabsContent value="appearance" className="space-y-6">
+        {/* APPEARANCE TAB */}
+        <TabsContent value="appearance">
           <Card>
             <CardHeader>
-              <CardTitle>Theme Settings</CardTitle>
-              <CardDescription>
-                Customize the appearance of your POS
-              </CardDescription>
+              <CardTitle>Theme</CardTitle>
             </CardHeader>
-
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Dark Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Toggle between light and dark theme
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Sun className="h-4 w-4" />
-                  <Switch checked={isDarkMode} onCheckedChange={handleThemeToggle} />
-                  <Moon className="h-4 w-4" />
-                </div>
-
+            <CardContent className="flex justify-between items-center">
+              <span>Dark Mode</span>
+              <div className="flex items-center gap-2">
+                <Sun className="h-4 w-4" />
+                <Switch checked={isDarkMode} onCheckedChange={handleThemeToggle} />
+                <Moon className="h-4 w-4" />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* BACKUP + CLOUD */}
+        {/* BACKUP + CLOUD TAB */}
         <TabsContent value="backup" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Data Backup</CardTitle>
-              <CardDescription>
-                Export your data for backup purposes
-              </CardDescription>
+              <CardTitle>Backup</CardTitle>
             </CardHeader>
-
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Download a complete backup of all bills and menu items in JSON format.
-              </p>
-
-              <Button onClick={handleBackup} variant="outline">
+            <CardContent>
+              <Button variant="outline" onClick={handleBackup}>
                 <Download className="mr-2 h-4 w-4" />
                 Download Backup
               </Button>
@@ -370,33 +323,27 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Cloud Sync</CardTitle>
-              <CardDescription>
-                Sync your data with Google Sheets
-              </CardDescription>
+              <CardDescription>Using hard-coded Apps Script URL</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
 
-              <div className="space-y-2">
-                <Label htmlFor="sheets-url">Google Sheets Script URL</Label>
+              {/* Field still visible but unused */}
+              <div>
+                <Label>Google Script URL (Not used)</Label>
                 <Input
-                  id="sheets-url"
-                  value={settings.googleSheetsUrl || ''}
+                  value={settings.googleSheetsUrl}
                   onChange={(e) =>
                     setSettings({ ...settings, googleSheetsUrl: e.target.value })
                   }
-                  placeholder="Paste Google Script Web App URL here"
+                  placeholder="Visible only"
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
+              <div className="flex justify-between items-center">
+                <div>
                   <Label>Enable Auto Sync</Label>
-                  <p className="text-sm text-muted-foreground">
-                    New bills will auto-sync every 10 minutes.
-                  </p>
                 </div>
-
                 <Switch
                   checked={settings.autoSync}
                   onCheckedChange={(checked) =>
@@ -405,18 +352,14 @@ export default function Settings() {
                 />
               </div>
 
-              <Button onClick={handleManualSync} className="w-full">
+              <Button className="w-full" onClick={handleManualSync}>
                 Sync All Data Now
               </Button>
-
-              <p className="text-xs text-muted-foreground">
-                Bills are stored month-wise (2025_1, 2025_2...).  
-                Menu + Settings sync in separate sheets.
-              </p>
 
             </CardContent>
           </Card>
         </TabsContent>
+
       </Tabs>
     </div>
   );

@@ -18,12 +18,13 @@ export async function overwriteLocalMenuFromCloud() {
     return { ok: false, error: "Invalid cloud menu" };
 
   const localMenu = await getAllMenuItems();
-  const cloudIds = new Set(cloudMenu.map((x: any) => x.id));
+  const cloudIds = new Set(cloudMenu.map((i: any) => i.id));
 
-  for (const mi of cloudMenu) {
+  // UPSERT cloud items
+  for (const cm of cloudMenu) {
     const itemLocal = {
-      ...mi,
-      isAvailable: !!mi.isAvailable,
+      ...cm,
+      isAvailable: !!cm.isAvailable,
     };
 
     await createMenuItem(itemLocal).catch(async () => {
@@ -31,6 +32,7 @@ export async function overwriteLocalMenuFromCloud() {
     });
   }
 
+  // Delete local items missing in cloud
   for (const lm of localMenu) {
     if (!cloudIds.has(lm.id)) {
       await deleteMenuItem(lm.id).catch(() => {});

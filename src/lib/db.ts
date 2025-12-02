@@ -33,20 +33,18 @@ export async function getDB(): Promise<IDBPDatabase<RestaurantPOSDB>> {
 
   dbInstance = await openDB<RestaurantPOSDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, newVersion, transaction) {
-      // Users store
+
       if (!db.objectStoreNames.contains('users')) {
         const userStore = db.createObjectStore('users', { keyPath: 'id' });
         userStore.createIndex('by-username', 'username', { unique: true });
       }
 
-      // Menu items store
       if (!db.objectStoreNames.contains('menuItems')) {
         const menuStore = db.createObjectStore('menuItems', { keyPath: 'id' });
         menuStore.createIndex('by-category', 'category');
         menuStore.createIndex('by-available', 'isAvailable');
       }
 
-      // Bills store
       if (!db.objectStoreNames.contains('bills')) {
         const billStore = db.createObjectStore('bills', { keyPath: 'id' });
         billStore.createIndex('by-date', 'createdAt');
@@ -54,7 +52,6 @@ export async function getDB(): Promise<IDBPDatabase<RestaurantPOSDB>> {
         billStore.createIndex('by-sync', 'syncedToCloud');
       }
 
-      // Settings store
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'id' });
       }
@@ -64,7 +61,7 @@ export async function getDB(): Promise<IDBPDatabase<RestaurantPOSDB>> {
   return dbInstance;
 }
 
-// User operations
+// USER OPERATIONS
 export async function createUser(user: User): Promise<void> {
   const db = await getDB();
   await db.add('users', user);
@@ -95,7 +92,7 @@ export async function deleteUser(id: string): Promise<void> {
   await db.delete('users', id);
 }
 
-// Menu item operations
+// MENU OPERATIONS
 export async function createMenuItem(item: MenuItem): Promise<void> {
   const db = await getDB();
   await db.add('menuItems', item);
@@ -132,10 +129,10 @@ export async function deleteMenuItem(id: string): Promise<void> {
   await db.delete('menuItems', id);
 }
 
-// Bill operations
+// BILL OPERATIONS
 export async function createBill(bill: Bill): Promise<void> {
   const db = await getDB();
-  await db.add('bills', bill);
+  await db.add('bills', { ...bill, syncedToCloud: 0 }); // REQUIRED FIX
 }
 
 export async function getBill(id: string): Promise<Bill | undefined> {
@@ -151,7 +148,7 @@ export async function getAllBills(): Promise<Bill[]> {
 export async function getBillsByDateRange(startDate: string, endDate: string): Promise<Bill[]> {
   const db = await getDB();
   const allBills = await db.getAll('bills');
-  return allBills.filter(bill => 
+  return allBills.filter(bill =>
     bill.createdAt >= startDate && bill.createdAt <= endDate
   );
 }
@@ -163,20 +160,20 @@ export async function getUnsyncedBills(): Promise<Bill[]> {
 
 export async function updateBill(bill: Bill): Promise<void> {
   const db = await getDB();
-  await db.put('bills', bill);
+  await db.put('bills', { ...bill, syncedToCloud: bill.syncedToCloud ?? 1 }); // REQUIRED FIX
 }
 
 export async function getLastBillNumber(): Promise<string> {
   const db = await getDB();
   const bills = await db.getAll('bills');
   if (bills.length === 0) return 'BILL0000';
-  
+
   const lastBill = bills[bills.length - 1];
   const lastNumber = parseInt(lastBill.billNumber.replace('BILL', ''));
   return `BILL${String(lastNumber + 1).padStart(4, '0')}`;
 }
 
-// Settings operations
+// SETTINGS
 export async function getSettings(): Promise<AppSettings | undefined> {
   const db = await getDB();
   const settings = await db.getAll('settings');
@@ -188,15 +185,13 @@ export async function saveSettings(settings: AppSettings & { id: string }): Prom
   await db.put('settings', settings);
 }
 
-// Initialize default data
+// INITIAL DATA
 export async function initializeDefaultData(): Promise<void> {
   const db = await getDB();
-  
-  // Check if already initialized
+
   const users = await db.getAll('users');
   if (users.length > 0) return;
 
-  // Create default admin user (password: admin123)
   const bcrypt = await import('bcryptjs');
   const defaultAdmin: User = {
     id: 'user-1',
@@ -209,7 +204,6 @@ export async function initializeDefaultData(): Promise<void> {
   };
   await db.add('users', defaultAdmin);
 
-  // Create default settings
   const defaultSettings: AppSettings & { id: string } = {
     id: 'settings-1',
     shopName: 'My Restaurant',
@@ -224,8 +218,6 @@ export async function initializeDefaultData(): Promise<void> {
   };
   await db.add('settings', defaultSettings);
 
-  // Create sample menu items
-  const categories = ['Starters', 'Main Course', 'Beverages', 'Desserts'];
   const sampleItems: MenuItem[] = [
     {
       id: 'menu-1',
@@ -243,46 +235,6 @@ export async function initializeDefaultData(): Promise<void> {
       price: 200,
       category: 'Starters',
       description: 'Grilled cottage cheese with spices',
-      isAvailable: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'menu-3',
-      name: 'Butter Chicken',
-      price: 280,
-      category: 'Main Course',
-      description: 'Creamy tomato curry with chicken',
-      isAvailable: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'menu-4',
-      name: 'Dal Makhani',
-      price: 180,
-      category: 'Main Course',
-      description: 'Creamy black lentils',
-      isAvailable: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'menu-5',
-      name: 'Fresh Lime Soda',
-      price: 60,
-      category: 'Beverages',
-      description: 'Refreshing lime drink',
-      isAvailable: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'menu-6',
-      name: 'Gulab Jamun',
-      price: 80,
-      category: 'Desserts',
-      description: 'Sweet milk dumplings in syrup',
       isAvailable: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

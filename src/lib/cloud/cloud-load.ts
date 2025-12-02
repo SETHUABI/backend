@@ -5,7 +5,7 @@ import { overwriteLocalMenuFromCloud } from "./cloud-menu";
 import { overwriteLocalSettingsFromCloud } from "./cloud-settings";
 
 /**
- * Load everything from cloud → overwrite everything local.
+ * Reload EVERYTHING from cloud and overwrite local IndexedDB.
  */
 export async function loadAllFromCloudAndOverwriteLocal() {
   await overwriteLocalBillsFromCloud();

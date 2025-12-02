@@ -1,10 +1,10 @@
 // File: src/lib/cloud/cloud.ts
-// Base helpers for communicating with Google Apps Script Web App
+// Hard-coded Google Apps Script URL
 
-// HARD-CODED URL (OPTION 1)
 export const API_URL =
   "https://script.google.com/macros/s/AKfycbxYqEe6xYNArVayPU44CZm9Ir_wp7lVef2HxdQxTlPuzi12oaqyyburHTv-eBkprOAcJw/exec";
 
+// -------------------- HTTP GET --------------------
 export async function getFromCloud(action: string) {
   const url = `${API_URL}?action=${encodeURIComponent(action)}`;
 
@@ -14,6 +14,7 @@ export async function getFromCloud(action: string) {
   return await res.json();
 }
 
+// -------------------- HTTP POST -------------------
 export async function postToCloud(payload: any) {
   const res = await fetch(API_URL, {
     method: "POST",
@@ -26,7 +27,7 @@ export async function postToCloud(payload: any) {
   return await res.json();
 }
 
-// Helpers
+// -------------------- Helpers ---------------------
 export async function loadCloudBills() {
   return await getFromCloud("listBills");
 }

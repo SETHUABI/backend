@@ -6,17 +6,17 @@ import { pushLocalSettingsToCloud } from "./cloud-settings";
 let autoSyncTimer: number | null = null;
 
 /**
- * Auto-sync every "intervalMs" (default 10 minutes).
+ * Auto-sync every intervalMs (default = 10 minutes)
  */
 export function startAutoSync(intervalMs = 10 * 60 * 1000) {
   stopAutoSync();
 
   autoSyncTimer = window.setInterval(async () => {
     try {
-      await syncUnsyncedBills();    // Push unsynced bills
-      await pushLocalSettingsToCloud(); // Push settings
+      await syncUnsyncedBills();
+      await pushLocalSettingsToCloud();
     } catch (err) {
-      console.error("AUTO SYNC ERROR", err);
+      console.error("AUTO SYNC ERROR:", err);
     }
   }, intervalMs);
 }
@@ -29,5 +29,5 @@ export function stopAutoSync() {
 }
 
 export function isAutoSyncRunning() {
-  return autoSyncTimer != null;
+  return autoSyncTimer !== null;
 }

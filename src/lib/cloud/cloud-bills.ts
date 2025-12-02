@@ -11,7 +11,7 @@ import {
 import { pushBillToCloud, loadCloudBills } from "./cloud";
 
 /**
- * Push a single bill to cloud and mark as synced locally.
+ * Sync 1 bill to cloud and mark as synced.
  */
 export async function syncSingleBill(bill: any) {
   try {
@@ -34,9 +34,9 @@ export async function syncUnsyncedBills() {
   const unsynced = await getUnsyncedBills();
   const results = [];
 
-  for (const b of unsynced) {
-    const r = await syncSingleBill(b);
-    results.push({ id: b.id, ...r });
+  for (const bill of unsynced) {
+    const r = await syncSingleBill(bill);
+    results.push({ id: bill.id, ...r });
   }
 
   return results;
@@ -51,9 +51,9 @@ export async function overwriteLocalBillsFromCloud() {
     return { ok: false, error: "Invalid cloud bills" };
 
   const localBills = await getAllBills();
-  const cloudIds = new Set(cloudBills.map((x: any) => x.id));
+  const cloudIds = new Set(cloudBills.map((b: any) => b.id));
 
-  // UPSERT
+  // UPSERT (create or update)
   for (const cb of cloudBills) {
     const billLocal = { ...cb, syncedToCloud: 1 };
 

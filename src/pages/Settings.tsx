@@ -41,7 +41,6 @@ export default function Settings() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { toast } = useToast();
 
-  // Load everything on startup
   useEffect(() => {
     loadSettings();
 
@@ -56,9 +55,9 @@ export default function Settings() {
       if (data) {
         setSettings(data);
 
-        // After settings load: if cloud URL exists, load cloud data
+        // FIXED: MUST pass URL
         if (data.googleSheetsUrl) {
-          await loadAllFromCloudAndOverwriteLocal();
+          await loadAllFromCloudAndOverwriteLocal(data.googleSheetsUrl);
         }
 
         setIsDarkMode(data.theme === 'dark');
@@ -75,7 +74,7 @@ export default function Settings() {
         id: 'settings-1',
       });
 
-      // Auto-sync controller
+      // Auto-sync toggle
       if (settings.autoSync) startAutoSync();
       else stopAutoSync();
 
@@ -123,7 +122,6 @@ export default function Settings() {
     }
   };
 
-  // MANUAL SYNC NOW BUTTON
   const handleManualSync = async () => {
     try {
       const [bills, menu, appSettings] = await Promise.all([
@@ -328,7 +326,6 @@ export default function Settings() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Dark Mode</Label>
@@ -344,12 +341,11 @@ export default function Settings() {
                 </div>
 
               </div>
-
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* BACKUP + CLOUD SYNC */}
+        {/* BACKUP + CLOUD */}
         <TabsContent value="backup" className="space-y-6">
           <Card>
             <CardHeader>
@@ -371,7 +367,6 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* CLOUD SYNC CARD */}
           <Card>
             <CardHeader>
               <CardTitle>Cloud Sync</CardTitle>
@@ -382,7 +377,6 @@ export default function Settings() {
 
             <CardContent className="space-y-4">
 
-              {/* URL INPUT */}
               <div className="space-y-2">
                 <Label htmlFor="sheets-url">Google Sheets Script URL</Label>
                 <Input
@@ -395,7 +389,6 @@ export default function Settings() {
                 />
               </div>
 
-              {/* AUTO SYNC */}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Enable Auto Sync</Label>
@@ -412,7 +405,6 @@ export default function Settings() {
                 />
               </div>
 
-              {/* MANUAL SYNC BUTTON */}
               <Button onClick={handleManualSync} className="w-full">
                 Sync All Data Now
               </Button>
@@ -424,7 +416,6 @@ export default function Settings() {
 
             </CardContent>
           </Card>
-
         </TabsContent>
       </Tabs>
     </div>

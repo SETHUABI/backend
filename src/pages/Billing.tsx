@@ -17,8 +17,11 @@ import { Plus, Minus, Trash2, ShoppingCart, Printer, Receipt } from 'lucide-reac
 import { useToast } from '@/hooks/use-toast';
 import { printBill } from '@/lib/print';
 
-// NEW IMPORT
+// BILL NUMBER
 import { getLastBillNumber, setLastBillNumber } from '@/lib/billCounter';
+
+// CLOUD SYNC
+import { syncSingleBill } from "@/lib/cloud/cloud-bills";
 
 export default function Billing() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -76,13 +79,12 @@ export default function Billing() {
   });
 
   const addToCart = (item: MenuItem) => {
-    const existingItem = cart.find(cartItem => cartItem.menuItemId === item.id);
-    
-    if (existingItem) {
-      setCart(cart.map(cartItem =>
-        cartItem.menuItemId === item.id
-          ? { ...cartItem, quantity: cartItem.quantity + 1, subtotal: (cartItem.quantity + 1) * cartItem.price }
-          : cartItem
+    const existing = cart.find(c => c.menuItemId === item.id);
+    if (existing) {
+      setCart(cart.map(c =>
+        c.menuItemId === item.id
+          ? { ...c, quantity: c.quantity + 1, subtotal: (c.quantity + 1) * c.price }
+          : c
       ));
     } else {
       setCart([...cart, {
@@ -98,13 +100,9 @@ export default function Billing() {
   const updateQuantity = (menuItemId: string, delta: number) => {
     setCart(cart.map(item => {
       if (item.menuItemId === menuItemId) {
-        const newQuantity = item.quantity + delta;
-        if (newQuantity <= 0) return item;
-        return {
-          ...item,
-          quantity: newQuantity,
-          subtotal: newQuantity * item.price,
-        };
+        const newQty = item.quantity + delta;
+        if (newQty <= 0) return item;
+        return { ...item, quantity: newQty, subtotal: newQty * item.price };
       }
       return item;
     }));
@@ -115,11 +113,10 @@ export default function Billing() {
   };
 
   const calculateTotals = () => {
-    const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+    const subtotal = cart.reduce((sum, i) => sum + i.subtotal, 0);
     const cgst = subtotal * (settings?.cgstRate || 2.5) / 100;
     const sgst = subtotal * (settings?.sgstRate || 2.5) / 100;
     const total = subtotal + cgst + sgst;
-    
     return { subtotal, cgst, sgst, total };
   };
 
@@ -127,7 +124,7 @@ export default function Billing() {
     if (cart.length === 0) {
       toast({
         title: 'Empty Cart',
-        description: 'Please add items to the cart before saving',
+        description: 'Add items before saving',
         variant: 'destructive',
       });
       return;
@@ -136,7 +133,7 @@ export default function Billing() {
     if (!user || !settings) {
       toast({
         title: 'Error',
-        description: 'User or settings not found',
+        description: 'User or settings missing',
         variant: 'destructive',
       });
       return;
@@ -147,7 +144,7 @@ export default function Billing() {
 
       const bill: Bill = {
         id: `bill-${Date.now()}`,
-        billNumber: billNumber,
+        billNumber,
         items: cart,
         subtotal,
         cgst,
@@ -160,12 +157,20 @@ export default function Billing() {
         paymentMethod,
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
-        syncedToCloud: false,
+        syncedToCloud: 0,
       };
 
+      // Save locally
       await createBill(bill);
 
+      // Save last bill no.
       setLastBillNumber(billNumber);
+
+      // CLOUD SYNC ----------------------------------------------------------
+      if (settings.autoSync && settings.googleSheetsUrl) {
+        await syncSingleBill(bill);
+      }
+      // ---------------------------------------------------------------------
 
       toast({
         title: 'Bill Saved',
@@ -184,6 +189,7 @@ export default function Billing() {
       loadBillNumber();
 
     } catch (error) {
+      console.error(error);
       toast({
         title: 'Error',
         description: 'Failed to save bill',
@@ -265,7 +271,7 @@ export default function Billing() {
               )}
             </div>
 
-            {/* BILL NUMBER MANUAL CHANGE */}
+            {/* BILL NUMBER CHANGE */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Bill No: {billNumber}</span>
               <Button
@@ -285,7 +291,7 @@ export default function Billing() {
             </div>
           </div>
 
-          {/* MENU CARDS — COMPACT VERSION */}
+          {/* MENU GRID */}
           <div className="grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
             {filteredItems.map(item => (
               <Card
@@ -423,11 +429,13 @@ export default function Billing() {
                       Save & Print
                     </Button>
                   </div>
+
                 </>
               )}
             </CardContent>
           </Card>
         </div>
+
       </div>
     </div>
   );

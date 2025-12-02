@@ -19,6 +19,11 @@ import { Save, Download, Moon, Sun } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportDataBackup } from '@/lib/export';
 
+// CLOUD SYNC IMPORTS
+import { loadAllFromCloudAndOverwriteLocal } from '@/lib/cloud/cloud-load';
+import { pushFullSync } from '@/lib/cloud/cloud';
+import { startAutoSync, stopAutoSync } from '@/lib/cloud/cloud-auto';
+
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>({
     shopName: 'My Restaurant',
@@ -30,13 +35,16 @@ export default function Settings() {
     theme: 'dark',
     autoSync: false,
     currency: '₹',
+    googleSheetsUrl: '',
   });
+
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { toast } = useToast();
 
+  // Load everything on startup
   useEffect(() => {
     loadSettings();
-    // Apply theme
+
     const theme = localStorage.getItem('theme') || 'dark';
     setIsDarkMode(theme === 'dark');
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -47,6 +55,12 @@ export default function Settings() {
       const data = await getSettings();
       if (data) {
         setSettings(data);
+
+        // After settings load: if cloud URL exists, load cloud data
+        if (data.googleSheetsUrl) {
+          await loadAllFromCloudAndOverwriteLocal();
+        }
+
         setIsDarkMode(data.theme === 'dark');
       }
     } catch (error) {
@@ -60,11 +74,14 @@ export default function Settings() {
         ...settings,
         id: 'settings-1',
       });
-      
-      // Apply theme
+
+      // Auto-sync controller
+      if (settings.autoSync) startAutoSync();
+      else stopAutoSync();
+
       document.documentElement.classList.toggle('dark', settings.theme === 'dark');
       localStorage.setItem('theme', settings.theme);
-      
+
       toast({
         title: 'Success',
         description: 'Settings saved successfully',
@@ -106,6 +123,31 @@ export default function Settings() {
     }
   };
 
+  // MANUAL SYNC NOW BUTTON
+  const handleManualSync = async () => {
+    try {
+      const [bills, menu, appSettings] = await Promise.all([
+        getAllBills(),
+        getAllMenuItems(),
+        getSettings(),
+      ]);
+
+      await pushFullSync({ bills, menu, settings: appSettings });
+
+      toast({
+        title: "Success",
+        description: "Cloud sync completed",
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Cloud sync failed",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -127,6 +169,7 @@ export default function Settings() {
           <TabsTrigger value="backup">Backup</TabsTrigger>
         </TabsList>
 
+        {/* SHOP INFO */}
         <TabsContent value="shop" className="space-y-6">
           <Card>
             <CardHeader>
@@ -136,6 +179,7 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+
               <div className="space-y-2">
                 <Label htmlFor="shop-name">Shop Name *</Label>
                 <Input
@@ -145,6 +189,7 @@ export default function Settings() {
                   placeholder="Enter shop name"
                 />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="shop-address">Shop Address</Label>
                 <Textarea
@@ -155,6 +200,7 @@ export default function Settings() {
                   rows={3}
                 />
               </div>
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="shop-gst">GST Number</Label>
@@ -165,6 +211,7 @@ export default function Settings() {
                     placeholder="GSTIN"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="shop-phone">Phone Number</Label>
                   <Input
@@ -175,6 +222,7 @@ export default function Settings() {
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="shop-email">Email</Label>
                 <Input
@@ -185,10 +233,12 @@ export default function Settings() {
                   placeholder="shop@example.com"
                 />
               </div>
+
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* BILLING */}
         <TabsContent value="billing" className="space-y-6">
           <Card>
             <CardHeader>
@@ -197,7 +247,9 @@ export default function Settings() {
                 Configure GST rates for billing
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cgst">CGST Rate (%)</Label>
@@ -209,6 +261,7 @@ export default function Settings() {
                     onChange={(e) => setSettings({ ...settings, cgstRate: parseFloat(e.target.value) })}
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="sgst">SGST Rate (%)</Label>
                   <Input
@@ -220,6 +273,7 @@ export default function Settings() {
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency Symbol</Label>
                 <Input
@@ -229,6 +283,7 @@ export default function Settings() {
                   placeholder="₹"
                 />
               </div>
+
             </CardContent>
           </Card>
 
@@ -239,7 +294,9 @@ export default function Settings() {
                 Configure thermal printer format
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
+
               <div className="space-y-2">
                 <Label htmlFor="printer-format">Printer Format</Label>
                 <Select
@@ -255,10 +312,12 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
+
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* APPEARANCE */}
         <TabsContent value="appearance" className="space-y-6">
           <Card>
             <CardHeader>
@@ -267,7 +326,9 @@ export default function Settings() {
                 Customize the appearance of your POS
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Dark Mode</Label>
@@ -275,16 +336,20 @@ export default function Settings() {
                     Toggle between light and dark theme
                   </p>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Sun className="h-4 w-4" />
                   <Switch checked={isDarkMode} onCheckedChange={handleThemeToggle} />
                   <Moon className="h-4 w-4" />
                 </div>
+
               </div>
+
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* BACKUP + CLOUD SYNC */}
         <TabsContent value="backup" className="space-y-6">
           <Card>
             <CardHeader>
@@ -293,11 +358,12 @@ export default function Settings() {
                 Export your data for backup purposes
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Download a complete backup of all bills and menu items in JSON format.
-                This can be used to restore your data if needed.
               </p>
+
               <Button onClick={handleBackup} variant="outline">
                 <Download className="mr-2 h-4 w-4" />
                 Download Backup
@@ -305,52 +371,59 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* CLOUD SYNC CARD */}
           <Card>
-  <CardHeader>
-    <CardTitle>Cloud Sync</CardTitle>
-    <CardDescription>
-      Sync your bills automatically to Google Sheets every month
-    </CardDescription>
-  </CardHeader>
+            <CardHeader>
+              <CardTitle>Cloud Sync</CardTitle>
+              <CardDescription>
+                Sync your data with Google Sheets
+              </CardDescription>
+            </CardHeader>
 
-  <CardContent className="space-y-4">
+            <CardContent className="space-y-4">
 
-    {/* GOOGLE SCRIPT URL */}
-    <div className="space-y-2">
-      <Label htmlFor="sheets-url">Google Sheets Script URL</Label>
-      <Input
-        id="sheets-url"
-        value={settings.googleSheetsUrl || ''}
-        onChange={(e) =>
-          setSettings({ ...settings, googleSheetsUrl: e.target.value })
-        }
-        placeholder="Paste Google Script Web App URL here"
-      />
-    </div>
+              {/* URL INPUT */}
+              <div className="space-y-2">
+                <Label htmlFor="sheets-url">Google Sheets Script URL</Label>
+                <Input
+                  id="sheets-url"
+                  value={settings.googleSheetsUrl || ''}
+                  onChange={(e) =>
+                    setSettings({ ...settings, googleSheetsUrl: e.target.value })
+                  }
+                  placeholder="Paste Google Script Web App URL here"
+                />
+              </div>
 
-    {/* AUTO SYNC SWITCH */}
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label>Enable Auto Sync</Label>
-        <p className="text-sm text-muted-foreground">
-          When enabled, new bills are pushed to Google Sheets automatically
-        </p>
-      </div>
+              {/* AUTO SYNC */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Enable Auto Sync</Label>
+                  <p className="text-sm text-muted-foreground">
+                    New bills will auto-sync every 10 minutes.
+                  </p>
+                </div>
 
-      <Switch
-        checked={settings.autoSync}
-        onCheckedChange={(checked) =>
-          setSettings({ ...settings, autoSync: checked })
-        }
-      />
-    </div>
+                <Switch
+                  checked={settings.autoSync}
+                  onCheckedChange={(checked) =>
+                    setSettings({ ...settings, autoSync: checked })
+                  }
+                />
+              </div>
 
-    <p className="text-xs text-muted-foreground">
-      Requires a Google Apps Script Web App linked to a Google Sheet.
-      Your POS will automatically create monthly sheets like 2025_Dec.
-    </p>
-  </CardContent>
-</Card>
+              {/* MANUAL SYNC BUTTON */}
+              <Button onClick={handleManualSync} className="w-full">
+                Sync All Data Now
+              </Button>
+
+              <p className="text-xs text-muted-foreground">
+                Bills are stored month-wise (2025_1, 2025_2...).  
+                Menu + Settings sync in separate sheets.
+              </p>
+
+            </CardContent>
+          </Card>
 
         </TabsContent>
       </Tabs>

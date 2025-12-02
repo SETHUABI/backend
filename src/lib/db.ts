@@ -32,8 +32,7 @@ export async function getDB(): Promise<IDBPDatabase<RestaurantPOSDB>> {
   if (dbInstance) return dbInstance;
 
   dbInstance = await openDB<RestaurantPOSDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, transaction) {
-
+    upgrade(db) {
       if (!db.objectStoreNames.contains('users')) {
         const userStore = db.createObjectStore('users', { keyPath: 'id' });
         userStore.createIndex('by-username', 'username', { unique: true });
@@ -61,7 +60,7 @@ export async function getDB(): Promise<IDBPDatabase<RestaurantPOSDB>> {
   return dbInstance;
 }
 
-// USER OPERATIONS
+/* USER OPERATIONS */
 export async function createUser(user: User): Promise<void> {
   const db = await getDB();
   await db.add('users', user);
@@ -92,7 +91,7 @@ export async function deleteUser(id: string): Promise<void> {
   await db.delete('users', id);
 }
 
-// MENU OPERATIONS
+/* MENU OPERATIONS */
 export async function createMenuItem(item: MenuItem): Promise<void> {
   const db = await getDB();
   await db.add('menuItems', item);
@@ -129,10 +128,10 @@ export async function deleteMenuItem(id: string): Promise<void> {
   await db.delete('menuItems', id);
 }
 
-// BILL OPERATIONS
+/* BILL OPERATIONS */
 export async function createBill(bill: Bill): Promise<void> {
   const db = await getDB();
-  await db.add('bills', { ...bill, syncedToCloud: 0 }); // REQUIRED FIX
+  await db.add('bills', { ...bill, syncedToCloud: 0 });
 }
 
 export async function getBill(id: string): Promise<Bill | undefined> {
@@ -160,7 +159,13 @@ export async function getUnsyncedBills(): Promise<Bill[]> {
 
 export async function updateBill(bill: Bill): Promise<void> {
   const db = await getDB();
-  await db.put('bills', { ...bill, syncedToCloud: bill.syncedToCloud ?? 1 }); // REQUIRED FIX
+  await db.put('bills', { ...bill, syncedToCloud: bill.syncedToCloud ?? 1 });
+}
+
+/* 🔥 NEW — REQUIRED for CLOUD SYNC */
+export async function deleteBill(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('bills', id);
 }
 
 export async function getLastBillNumber(): Promise<string> {
@@ -173,7 +178,7 @@ export async function getLastBillNumber(): Promise<string> {
   return `BILL${String(lastNumber + 1).padStart(4, '0')}`;
 }
 
-// SETTINGS
+/* SETTINGS */
 export async function getSettings(): Promise<AppSettings | undefined> {
   const db = await getDB();
   const settings = await db.getAll('settings');
@@ -185,7 +190,7 @@ export async function saveSettings(settings: AppSettings & { id: string }): Prom
   await db.put('settings', settings);
 }
 
-// INITIAL DATA
+/* INITIAL DATA */
 export async function initializeDefaultData(): Promise<void> {
   const db = await getDB();
 
@@ -193,6 +198,7 @@ export async function initializeDefaultData(): Promise<void> {
   if (users.length > 0) return;
 
   const bcrypt = await import('bcryptjs');
+
   const defaultAdmin: User = {
     id: 'user-1',
     username: 'admin',

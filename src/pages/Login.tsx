@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChefHat, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -149,6 +150,37 @@ export default function Login() {
               )}
             </Button>
           </form>
+
+                      <div className="mt-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-muted"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-center">
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    console.log('Google login success:', credentialResponse);
+                    // Handle Google login - for now just show success message
+                    toast({
+                      title: 'Google Login',
+                      description: 'Google authentication implemented. Backend integration needed.',
+                      variant: 'default',
+                    });
+                  }}
+                  onError={() => {
+                    toast({
+                      title: 'Login Failed',
+                      description: 'Google authentication failed. Please try again.',
+                      variant: 'destructive',
+                    });
+                  }}
+                />
+              </div>
+            </div>
           
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <p className="text-sm font-semibold mb-2">Demo Credentials:</p>
